@@ -1,0 +1,66 @@
+:host {
+  all: initial;
+  color: #eef2f7;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+* { box-sizing: border-box; }
+
+.backdrop {
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding: 12vh 20px 40px;
+  background: rgb(7 12 22 / 44%);
+  pointer-events: auto;
+}
+
+.dialog {
+  width: min(560px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 18px;
+  background: #151b27;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 38%), 0 0 0 1px rgb(5 10 20 / 16%);
+  color: #eef2f7;
+  animation: sheet-finder-in 150ms ease-out;
+}
+
+.dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px 16px; }
+.heading-group { display: flex; align-items: center; gap: 12px; }
+.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid #8290ff; border-radius: 10px; background: linear-gradient(140deg, #6876f6, #283695); color: #fff; font-size: 18px; box-shadow: 0 6px 18px rgb(78 94 232 / 32%); }
+.eyebrow { margin: 0 0 3px; color: #909bad; font-size: 10px; font-weight: 750; letter-spacing: .16em; }
+h1 { margin: 0; color: #fff; font-size: 19px; font-weight: 700; letter-spacing: -.025em; }
+.header-actions { display: flex; gap: 6px; }
+.header-button { height: 30px; border: 1px solid #343e52; border-radius: 8px; background: #1b2331; color: #aab5c7; cursor: pointer; font: inherit; font-size: 12px; }
+.header-button.refresh { width: 30px; font-size: 18px; line-height: 1; }
+.header-button.close { padding: 0 9px; }
+.header-button:hover, .header-button:focus-visible { border-color: #7f8aff; background: #242e4a; color: #fff; outline: none; }
+.header-button:disabled { cursor: wait; opacity: .48; }
+
+.search-box { display: flex; align-items: center; gap: 10px; margin: 0 22px; border: 1px solid #3a465d; border-radius: 11px; background: #0f141e; padding: 0 11px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%); }
+.search-box:focus-within { border-color: #7d88ff; box-shadow: 0 0 0 3px rgb(107 123 255 / 18%); }
+.search-icon { color: #99a7be; font-size: 21px; line-height: 1; }
+input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; padding: 13px 0; color: #fff; font: inherit; font-size: 15px; }
+input::placeholder { color: #69768d; }
+kbd { border: 1px solid #364257; border-radius: 5px; padding: 3px 6px; color: #8794aa; font-size: 10px; }
+
+.result-meta { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 0 24px; }
+.status { margin: 0; color: #8f9bb0; font-size: 11px; }
+.status[data-tone="error"] { color: #ff9f9f; }
+.meta-hint { color: #657289; font-size: 10px; }
+.results { max-height: min(48vh, 410px); overflow-y: auto; padding: 0 10px 12px; }
+.result { display: flex; width: 100%; align-items: center; gap: 12px; border: 1px solid transparent; border-radius: 9px; background: transparent; padding: 10px 12px; color: #d8dfeb; cursor: pointer; font: inherit; text-align: left; }
+.result:hover, .result:focus-visible, .result.is-selected { border-color: #3f4d92; background: #242d55; color: #fff; outline: none; }
+.result-index { width: 23px; color: #64718b; font-size: 10px; font-variant-numeric: tabular-nums; }
+.result.is-selected .result-index { color: #aeb7ff; }
+.result-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.result.is-current::after { margin-left: auto; color: #aeb7ff; content: "現在地"; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.empty { margin: 6px 24px 22px; color: #8995aa; font-size: 13px; text-align: center; }
+
+@keyframes sheet-finder-in { from { opacity: 0; transform: translateY(-8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .dialog { animation: none; } }
+@media (max-width: 480px) { .backdrop { padding: 7vh 10px 20px; } .dialog { width: calc(100vw - 20px); } .dialog-header { padding-left: 16px; padding-right: 16px; } .search-box { margin-left: 16px; margin-right: 16px; } .result-meta { padding-left: 18px; padding-right: 18px; } }

@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Sheet Finder",
+  "version": "0.1.0",
+  "description": "Google Sheetsのシート名を検索して移動します。",
+  "permissions": [],
+  "host_permissions": ["https://docs.google.com/spreadsheets/*"],
+  "background": {
+    "service_worker": "src/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "シートを検索"
+  },
+  "commands": {
+    "toggle-sheet-finder": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "MacCtrl+Shift+K"
+      },
+      "description": "シート検索オーバーレイを開閉"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://docs.google.com/spreadsheets/*"],
+      "js": ["src/search-content.js", "src/overlay-state.js", "src/sheets-adapter.js", "src/overlay.js", "src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/overlay.css"],
+      "matches": ["https://docs.google.com/*"]
+    }
+  ]
+}
