@@ -80,6 +80,7 @@
 
   let notificationTimer;
   let observedSheetTabs = [];
+  let observedSheetTabSet = new Set();
   function scheduleSheetsChangedNotification() {
     clearTimeout(notificationTimer);
     notificationTimer = setTimeout(() => {
@@ -94,13 +95,13 @@
 
   function rebindSheetTabObserver() {
     const nextTabs = getSheetTabs();
-    const observedSet = new Set(observedSheetTabs);
-    if (nextTabs.length === observedSheetTabs.length && nextTabs.every((tab) => observedSet.has(tab))) {
+    if (nextTabs.length === observedSheetTabs.length && nextTabs.every((tab) => observedSheetTabSet.has(tab))) {
       return false;
     }
 
     if (observedSheetTabs.length) sheetTabObserver.disconnect();
     observedSheetTabs = nextTabs;
+    observedSheetTabSet = new Set(nextTabs);
     for (const tab of observedSheetTabs) {
       sheetTabObserver.observe(tab, {
         attributeFilter: ['aria-selected', 'class'],
@@ -129,11 +130,26 @@
     return hasChildListMutation && observedSheetTabs.some((tab) => tab?.isConnected === false);
   }
 
+  function isInsideObservedSheetTab(node) {
+    try {
+      if (observedSheetTabSet.has(node)) return true;
+      const closestTab = node?.closest?.(SHEET_TAB_SELECTOR);
+      return Boolean(closestTab && observedSheetTabSet.has(closestTab));
+    } catch {
+      return false;
+    }
+  }
+
   rebindSheetTabObserver();
 
   const structureObserver = new MutationObserver((mutations) => {
-    if (mayChangeSheetTabs(mutations) && rebindSheetTabObserver()) observeCurrentSheet();
-    scheduleSheetsChangedNotification();
+    const tabsMayHaveChanged = mayChangeSheetTabs(mutations);
+    const tabContentChanged = mutations?.some((mutation) =>
+      mutation.type === 'childList' && isInsideObservedSheetTab(mutation.target),
+    );
+
+    if (tabsMayHaveChanged && rebindSheetTabObserver()) observeCurrentSheet();
+    if (tabsMayHaveChanged || tabContentChanged) scheduleSheetsChangedNotification();
   });
 
   if (global.document.body) {

@@ -161,7 +161,7 @@ test('unrelated child-list changes do not rescan or rebind sheet tabs', () => {
   };
   let queryCalls = 0;
   let singleQueryCalls = 0;
-  let scheduledCallback;
+  let scheduleCalls = 0;
   const harness = createObserverHarness();
   const context = {
     chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
@@ -181,7 +181,7 @@ test('unrelated child-list changes do not rescan or rebind sheet tabs', () => {
         return [tabA, tabB];
       },
     },
-    setTimeout: (callback) => { scheduledCallback = callback; return 1; },
+    setTimeout: () => { scheduleCalls += 1; return 1; },
     clearTimeout() {},
   };
   context.globalThis = context;
@@ -197,14 +197,53 @@ test('unrelated child-list changes do not rescan or rebind sheet tabs', () => {
     addedNodes: [unrelatedElement, textNode],
     removedNodes: [{ nodeType: 8 }],
   }]);
-  scheduledCallback();
 
   assert.equal(queryCalls, 1);
   assert.equal(singleQueryCalls, 0);
   assert.equal(containsCalls, 0);
   assert.equal(connectionReads, 2);
+  assert.equal(scheduleCalls, 0);
   assert.equal(attributeObserver.disconnectCount, 0);
   assert.equal(attributeObserver.observations.length, observationCount);
+});
+
+test('sheet-tab content changes schedule a sheets-changed notification', () => {
+  const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
+  const body = {};
+  const tab = {};
+  const tabContent = { closest: () => tab };
+  let scheduleCalls = 0;
+  const harness = createObserverHarness();
+  const context = {
+    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    SheetFinder: {
+      createSheetsAdapter: () => ({ getCurrentSheetName: () => 'A' }),
+      createOverlayController: () => ({ observeCurrentSheet() {} }),
+    },
+    MutationObserver: harness.Observer,
+    document: {
+      body,
+      querySelectorAll: () => [tab],
+    },
+    setTimeout: () => { scheduleCalls += 1; return 1; },
+    clearTimeout() {},
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(source, context);
+  const structureObserver = harness.instances.find((observer) =>
+    observer.observations.some(({ target }) => target === body));
+  const attributeObserver = harness.instances.find((observer) => observer !== structureObserver);
+
+  structureObserver.callback([{
+    type: 'childList',
+    target: tabContent,
+    addedNodes: [{ nodeType: 3 }],
+    removedNodes: [],
+  }]);
+
+  assert.equal(scheduleCalls, 1);
+  assert.equal(attributeObserver.disconnectCount, 0);
 });
 
 test('tracks direct sheet changes while the overlay is closed without listing sheets', () => {
@@ -319,19 +358,20 @@ test('ignores a missing current sheet during DOM observation without throwing', 
 
 test('does not throw when the extension context disappears before a sheet change notification', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
-  let mutationCallback;
+  const mutationCallbacks = [];
   let scheduledCallback;
+  const tab = {};
   const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
   const context = {
     chrome: { runtime },
     SheetFinder: { createSheetsAdapter: () => ({}) },
     MutationObserver: class {
-      constructor(callback) { mutationCallback = callback; }
+      constructor(callback) { mutationCallbacks.push(callback); }
       observe() {}
     },
     document: {
       body: {},
-      querySelector: () => ({})
+      querySelectorAll: () => [tab],
     },
     setTimeout: (callback) => { scheduledCallback = callback; return 1; },
     clearTimeout() {},
@@ -342,24 +382,25 @@ test('does not throw when the extension context disappears before a sheet change
   context.chrome.runtime = undefined;
 
   assert.doesNotThrow(() => {
-    mutationCallback();
+    mutationCallbacks[0]();
     scheduledCallback();
   });
 });
 
 test('does not throw when the invalidated runtime throws while reading sendMessage', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
-  let mutationCallback;
+  const mutationCallbacks = [];
   let scheduledCallback;
+  const tab = {};
   const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
   const context = {
     chrome: { runtime },
     SheetFinder: { createSheetsAdapter: () => ({}) },
     MutationObserver: class {
-      constructor(callback) { mutationCallback = callback; }
+      constructor(callback) { mutationCallbacks.push(callback); }
       observe() {}
     },
-    document: { body: {}, querySelector: () => ({}) },
+    document: { body: {}, querySelectorAll: () => [tab] },
     setTimeout: (callback) => { scheduledCallback = callback; return 1; },
     clearTimeout() {},
   };
@@ -374,7 +415,7 @@ test('does not throw when the invalidated runtime throws while reading sendMessa
   });
 
   assert.doesNotThrow(() => {
-    mutationCallback();
+    mutationCallbacks[0]();
     scheduledCallback();
   });
 });
