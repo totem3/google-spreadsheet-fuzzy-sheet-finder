@@ -88,7 +88,9 @@
   }
 
   function getCurrentSheetName(documentRef) {
-    const selected = documentRef.querySelector('[role="tab"][aria-selected="true"], .docs-sheet-tab-selected');
+    const selected = documentRef.querySelector(
+      '[role="tab"][aria-selected="true"], .docs-sheet-tab-selected, .docs-sheet-tab.docs-sheet-active-tab',
+    );
     return selected && isVisible(selected) ? getLabel(selected) : null;
   }
 
@@ -196,7 +198,11 @@
       throw error;
     }
 
-    return { getSheets, activateSheet };
+    return {
+      getSheets,
+      activateSheet,
+      getCurrentSheetName: () => getCurrentSheetName(documentRef),
+    };
   }
 
   global.SheetFinder = global.SheetFinder || {};

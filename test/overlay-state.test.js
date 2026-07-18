@@ -17,9 +17,13 @@ const sheets = [
   { name: '経費' },
 ];
 
-test('opening the overlay resets the query and selects the first result', () => {
+test('opening the overlay resets the query and selects the previous sheet', () => {
   const { createState, open } = loadOverlayState();
-  const state = createState();
+  const state = {
+    ...createState(),
+    currentName: '経費',
+    previousName: '売上サマリー',
+  };
 
   const opened = open({ ...state, query: 'old query', selectedIndex: 2 }, sheets, '経費');
 
@@ -27,9 +31,65 @@ test('opening the overlay resets the query and selects the first result', () => 
     open: true,
     sheets,
     currentName: '経費',
+    previousName: '売上サマリー',
     query: '',
-    selectedIndex: 0,
+    selectedIndex: 1,
   });
+});
+
+test('the initial current sheet observation does not create false history', () => {
+  const { createState, observeCurrentSheet } = loadOverlayState();
+
+  const observed = observeCurrentSheet(createState(), '売上');
+
+  assert.equal(observed.currentName, '売上');
+  assert.equal(observed.previousName, null);
+});
+
+test('only a real current sheet change advances history', () => {
+  const { createState, observeCurrentSheet } = loadOverlayState();
+  const initial = observeCurrentSheet(createState(), '売上');
+
+  const empty = observeCurrentSheet(initial, '  ');
+  const duplicate = observeCurrentSheet(empty, '  売上  ');
+  const changed = observeCurrentSheet(duplicate, '経費');
+
+  assert.equal(empty, initial);
+  assert.equal(duplicate, initial);
+  assert.equal(changed.currentName, '経費');
+  assert.equal(changed.previousName, '売上');
+});
+
+test('returning from B to A makes B the previous sheet', () => {
+  const { createState, observeCurrentSheet } = loadOverlayState();
+  const atA = observeCurrentSheet(createState(), 'A');
+  const atB = observeCurrentSheet(atA, 'B');
+
+  const returnedToA = observeCurrentSheet(atB, 'A');
+
+  assert.equal(returnedToA.currentName, 'A');
+  assert.equal(returnedToA.previousName, 'B');
+});
+
+test('opening falls back to the current sheet when the previous sheet is absent', () => {
+  const { createState, open } = loadOverlayState();
+  const state = {
+    ...createState(),
+    currentName: '経費',
+    previousName: '削除済み',
+  };
+
+  const opened = open(state, sheets, '経費');
+
+  assert.equal(opened.selectedIndex, 2);
+});
+
+test('opening safely selects the first result when neither history sheet exists', () => {
+  const { createState, open } = loadOverlayState();
+
+  const opened = open(createState(), sheets, null);
+
+  assert.equal(opened.selectedIndex, 0);
 });
 
 test('selection movement wraps around the available results', () => {
@@ -46,6 +106,7 @@ test('closing the overlay clears transient search state', () => {
     open: true,
     sheets,
     currentName: '売上',
+    previousName: '経費',
     query: '売',
     selectedIndex: 1,
   };
@@ -54,6 +115,7 @@ test('closing the overlay clears transient search state', () => {
     open: false,
     sheets,
     currentName: '売上',
+    previousName: '経費',
     query: '',
     selectedIndex: 0,
   });
