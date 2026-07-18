@@ -6,7 +6,7 @@
     let shadow;
     let ui;
     let requestToken = 0;
-    let view = { error: '', loading: false, moving: false };
+    let view = { error: '', status: 'idle' };
 
     function ensureDom() {
       if (host) return;
@@ -147,30 +147,29 @@
       }
 
       ui.status.dataset.tone = view.error ? 'error' : 'normal';
-      ui.status.textContent = view.error || (view.loading ? 'シート一覧を読み込み中…' : view.moving ? '移動中…' : `${results.length}件のシート`);
-      ui.refresh.disabled = view.loading || view.moving;
-      ui.close.disabled = view.moving;
+      ui.status.textContent = view.error || (view.status === 'loading' ? 'シート一覧を読み込み中…' : view.status === 'activating' ? '移動中…' : `${results.length}件のシート`);
+      ui.refresh.disabled = view.status === 'loading' || view.status === 'activating';
+      ui.close.disabled = view.status === 'activating';
     }
 
     async function requestSheets() {
       if (!state.open) return;
       const token = ++requestToken;
-      view = { error: '', loading: true, moving: false };
+      view = { error: '', status: 'loading' };
       render();
 
       try {
         const response = await adapter.getSheets();
         if (!state.open || token !== requestToken) return;
         state = stateApi.open(state, response.sheets || [], response.currentName);
-        view = { error: '', loading: false, moving: false };
+        view = { error: '', status: 'idle' };
         render();
         ui.input.focus();
       } catch (error) {
         if (!state.open || token !== requestToken) return;
         view = {
           error: error?.message || 'シート一覧を取得できませんでした。Google Sheetsを再読み込みしてください。',
-          loading: false,
-          moving: false,
+          status: 'error',
         };
         render();
         ui.input.focus();
@@ -178,8 +177,8 @@
     }
 
     async function activateSelected(name) {
-      if (view.loading || view.moving) return;
-      view = { error: '', loading: false, moving: true };
+      if (view.status === 'loading' || view.status === 'activating') return;
+      view = { error: '', status: 'activating' };
       render();
 
       try {
@@ -188,8 +187,7 @@
       } catch (error) {
         view = {
           error: error?.message || 'シートへ移動できませんでした。',
-          loading: false,
-          moving: false,
+          status: 'error',
         };
         render();
       }
@@ -199,7 +197,7 @@
       if (state.open) return;
       ensureDom();
       state = stateApi.open(state, [], null);
-      view = { error: '', loading: true, moving: false };
+      view = { error: '', status: 'loading' };
       render();
       ui.input.focus();
       requestSheets();
@@ -208,7 +206,7 @@
     function close() {
       requestToken += 1;
       state = stateApi.close(state);
-      view = { error: '', loading: false, moving: false };
+      view = { error: '', status: 'idle' };
       host?.remove();
       host = undefined;
       shadow = undefined;
