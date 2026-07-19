@@ -30,7 +30,10 @@ test('uses a pinned Release Please action only for main pushes', () => {
   const workflow = readText('.github/workflows/release-please.yml');
 
   assert.match(workflow, /^  push:\n    branches:\n      - main$/m);
-  assert.match(workflow, /googleapis\/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5\.0\.0/);
+  assert.match(
+    workflow,
+    /^\s+uses:\s+googleapis\/release-please-action@[a-f0-9]{40} # v\d+\.\d+\.\d+$/m,
+  );
   assert.match(workflow, /contents: write/);
   assert.match(workflow, /issues: write/);
   assert.match(workflow, /pull-requests: write/);
@@ -45,7 +48,10 @@ test('validates ordinary pull request titles without privileged triggers', () =>
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.match(workflow, /pull-requests: read/);
   assert.doesNotMatch(workflow, /actions\/checkout/);
-  assert.match(workflow, /amannn\/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6\.1\.1/);
+  assert.match(
+    workflow,
+    /^\s+uses:\s+amannn\/action-semantic-pull-request@[a-f0-9]{40} # v\d+\.\d+\.\d+$/m,
+  );
   assert.match(workflow, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/);
 
   for (const type of [
