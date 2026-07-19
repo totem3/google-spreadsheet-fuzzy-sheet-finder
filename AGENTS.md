@@ -9,7 +9,6 @@
 - Mark breaking changes with `!` or a `BREAKING CHANGE:` footer.
 - Keep the description concise, in English, and starting with a lowercase character.
 - Use squash merge and preserve the pull request title as the merge commit subject.
-- Read `CONTRIBUTING.md` for examples and release effects.
 
 ## Verification
 
