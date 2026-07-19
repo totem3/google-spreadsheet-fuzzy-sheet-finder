@@ -28,8 +28,9 @@ The repository will remain a single-package, non-published Node project. Release
 - The current version is `0.1.0` in both `package.json` and `manifest.json`.
 - The project is a private Node package with no package publication step.
 - The default branch is `main`.
-- The feature branch is `claude/fix-previous-sheet-selection`, with pull request #2 targeting `main`.
-- The current `origin/main` commit is `2766262d566dc05a03473a3bcecdd67dffbd36e6`.
+- Pull request #2 was merged into `main` as merge commit `18e7c1444fc4dfbe0cd51cbd941d8cb07c3362bc`.
+- The release automation is developed separately on branch `chore/release-automation`.
+- Commit `2766262d566dc05a03473a3bcecdd67dffbd36e6` is the bootstrap boundary immediately before the merged feature history.
 - The existing commit history already predominantly follows Conventional Commits.
 
 ## Commit and Pull Request Convention
@@ -57,13 +58,19 @@ A `!` after the type or scope, or a `BREAKING CHANGE:` footer, marks a breaking 
 
 Pull requests are squash merged. GitHub must be configured to use the pull request title as the default squash commit message so the validated title becomes the commit that Release Please parses on `main`.
 
-Pull request #2 will be renamed to:
+The separate release automation pull request will use this title:
 
 ```text
-feat: select the previous active sheet by default
+chore: configure release automation
 ```
 
-This makes the first automated release `0.2.0` through the normal `feat` rule, without a temporary `release-as` override.
+Pull request #2 was merged without a `feat:` commit on `main`, so its `fix:` history would normally produce `0.1.1`. To preserve the approved initial version without leaving a persistent configuration override, the release automation pull request body ends with this Release Please footer:
+
+```text
+Release-As: 0.2.0
+```
+
+GitHub is configured to include the pull request body in the squash commit message. Release Please reads this one-time footer from the merge commit and proposes `0.2.0`; subsequent releases use the normal Conventional Commit rules.
 
 ## Contributor Guidance
 
@@ -132,10 +139,10 @@ Merging a release pull request creates the Git tag and published GitHub Release.
 
 ## First Release Flow
 
-1. Add the release automation and contribution rules to pull request #2.
-2. Rename pull request #2 to `feat: select the previous active sheet by default`.
-3. Verify tests, configuration files, workflow syntax, and the pull request diff.
-4. Squash merge pull request #2 using its title as the merge commit subject.
+1. Add the release automation and contribution rules on branch `chore/release-automation`.
+2. Open a separate pull request titled `chore: configure release automation` whose body ends with `Release-As: 0.2.0`.
+3. Verify tests, configuration files, workflow syntax, pull request title, footer, and diff.
+4. Configure squash merge to use the pull request title and body, then squash merge the release automation pull request.
 5. Release Please opens or updates a release pull request for `0.2.0`.
 6. Review that release pull request for:
    - `package.json` version `0.2.0`.
@@ -171,11 +178,11 @@ Before pushing the implementation:
 
 After pushing:
 
-- Confirm the title-validation workflow succeeds for pull request #2.
+- Confirm the title-validation workflow succeeds for the release automation pull request.
 - Read back the repository approval policy and confirm it is `all_external_contributors`.
 - Confirm the pull request title and diff match this design.
 
-After merging pull request #2:
+After merging the release automation pull request:
 
 - Confirm Release Please creates the `0.2.0` release pull request.
 - Confirm both version files and `CHANGELOG.md` are correct before merging it.
@@ -183,7 +190,7 @@ After merging pull request #2:
 
 ## Failure Handling
 
-- If Release Please proposes `0.1.1`, verify that pull request #2 was squash merged with the `feat:` title and that the bootstrap manifest is `0.1.0`.
+- If Release Please proposes `0.1.1`, verify that the release automation squash commit body contains `Release-As: 0.2.0` and that the bootstrap manifest is `0.1.0`.
 - If old commits appear in the first changelog, verify the configured full `bootstrap-sha`.
 - If `manifest.json` is not updated, verify the `extra-files` path, updater type, and JSONPath.
 - If a normal pull request title check does not run, verify the `pull_request` event configuration and required-check settings.
