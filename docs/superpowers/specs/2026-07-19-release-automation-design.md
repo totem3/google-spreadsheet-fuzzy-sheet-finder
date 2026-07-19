@@ -96,7 +96,7 @@ The workflow:
 
 The `Validate PR title` check should be required for ordinary pull requests after the workflow is present on `main`.
 
-Release Please pull requests are trusted bot output and are exempt from this requirement. With the default `GITHUB_TOKEN`, GitHub does not trigger a second workflow from a pull request created by Release Please.
+Release Please pull requests are trusted bot output and are exempt from this requirement. With the default `GITHUB_TOKEN`, GitHub does not trigger a second workflow from a pull request created by Release Please. `main` branch protection therefore sets `enforce_admins` to `false`: after a maintainer manually inspects a trusted Release Please pull request, an administrator intentionally uses the branch-protection bypass to merge it despite the absent bot-triggered check. Ordinary pull requests must still pass `Validate PR title`.
 
 ## External Contributor Workflow Approval
 
