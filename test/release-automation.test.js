@@ -37,3 +37,32 @@ test('uses a pinned Release Please action only for main pushes', () => {
   assert.match(workflow, /token: \$\{\{ github\.token \}\}/);
   assert.doesNotMatch(workflow, /pull_request_target/);
 });
+
+test('validates ordinary pull request titles without privileged triggers', () => {
+  const workflow = readText('.github/workflows/semantic-pull-request.yml');
+
+  assert.match(workflow, /^  pull_request:\n    types: \[opened, reopened, edited, synchronize\]$/m);
+  assert.doesNotMatch(workflow, /pull_request_target/);
+  assert.match(workflow, /pull-requests: read/);
+  assert.doesNotMatch(workflow, /actions\/checkout/);
+  assert.match(workflow, /amannn\/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6\.1\.1/);
+  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/);
+
+  for (const type of [
+    'feat', 'fix', 'deps', 'docs', 'refactor',
+    'test', 'chore', 'ci', 'build', 'revert',
+  ]) {
+    assert.match(workflow, new RegExp(`^            ${type}$`, 'm'));
+  }
+
+  assert.match(workflow, /subjectPattern: '\^\[a-z\]\.\+\$'/);
+});
+
+test('checks GitHub Actions dependencies weekly', () => {
+  const dependabot = readText('.github/dependabot.yml');
+
+  assert.match(dependabot, /package-ecosystem: github-actions/);
+  assert.match(dependabot, /interval: weekly/);
+  assert.match(dependabot, /prefix: chore/);
+  assert.match(dependabot, /include: scope/);
+});
