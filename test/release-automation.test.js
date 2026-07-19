@@ -9,13 +9,13 @@ test('keeps package and extension versions synchronized', () => {
   assert.equal(readJson('manifest.json').version, readJson('package.json').version);
 });
 
-test('bootstraps a root Node release at 0.1.0', () => {
+test('configures a root Node release and tracks its current version', () => {
   const config = readJson('release-please-config.json');
   const manifest = readJson('.release-please-manifest.json');
   const root = config.packages['.'];
 
   assert.equal(config['bootstrap-sha'], '2766262d566dc05a03473a3bcecdd67dffbd36e6');
-  assert.equal(manifest['.'], '0.1.0');
+  assert.equal(manifest['.'], readJson('package.json').version);
   assert.equal(root['release-type'], 'node');
   assert.equal(root['include-component-in-tag'], false);
   assert.equal(root['include-v-in-tag'], true);
