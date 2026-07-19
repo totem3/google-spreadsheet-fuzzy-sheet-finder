@@ -358,19 +358,17 @@ test('ignores a missing current sheet during DOM observation without throwing', 
 
 test('does not throw when the extension context disappears before a sheet change notification', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
-  const mutationCallbacks = [];
+  const harness = createObserverHarness();
   let scheduledCallback;
   const tab = {};
+  const body = {};
   const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
   const context = {
     chrome: { runtime },
     SheetFinder: { createSheetsAdapter: () => ({}) },
-    MutationObserver: class {
-      constructor(callback) { mutationCallbacks.push(callback); }
-      observe() {}
-    },
+    MutationObserver: harness.Observer,
     document: {
-      body: {},
+      body,
       querySelectorAll: () => [tab],
     },
     setTimeout: (callback) => { scheduledCallback = callback; return 1; },
@@ -381,26 +379,32 @@ test('does not throw when the extension context disappears before a sheet change
   vm.runInNewContext(source, context);
   context.chrome.runtime = undefined;
 
+  const structureObserver = harness.instances.find((observer) =>
+    observer.observations.some(({ target }) => target === body));
+  assert.ok(structureObserver);
   assert.doesNotThrow(() => {
-    mutationCallbacks[0]();
+    structureObserver.callback([{
+      type: 'childList',
+      target: tab,
+      addedNodes: [{ nodeType: 3 }],
+      removedNodes: [],
+    }]);
     scheduledCallback();
   });
 });
 
 test('does not throw when the invalidated runtime throws while reading sendMessage', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
-  const mutationCallbacks = [];
+  const harness = createObserverHarness();
   let scheduledCallback;
   const tab = {};
+  const body = {};
   const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
   const context = {
     chrome: { runtime },
     SheetFinder: { createSheetsAdapter: () => ({}) },
-    MutationObserver: class {
-      constructor(callback) { mutationCallbacks.push(callback); }
-      observe() {}
-    },
-    document: { body: {}, querySelectorAll: () => [tab] },
+    MutationObserver: harness.Observer,
+    document: { body, querySelectorAll: () => [tab] },
     setTimeout: (callback) => { scheduledCallback = callback; return 1; },
     clearTimeout() {},
   };
@@ -414,8 +418,16 @@ test('does not throw when the invalidated runtime throws while reading sendMessa
     }),
   });
 
+  const structureObserver = harness.instances.find((observer) =>
+    observer.observations.some(({ target }) => target === body));
+  assert.ok(structureObserver);
   assert.doesNotThrow(() => {
-    mutationCallbacks[0]();
+    structureObserver.callback([{
+      type: 'childList',
+      target: tab,
+      addedNodes: [{ nodeType: 3 }],
+      removedNodes: [],
+    }]);
     scheduledCallback();
   });
 });
