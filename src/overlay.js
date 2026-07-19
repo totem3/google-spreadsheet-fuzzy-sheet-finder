@@ -161,7 +161,9 @@
       try {
         const response = await adapter.getSheets();
         if (!state.open || token !== requestToken) return;
-        state = stateApi.open(state, response.sheets || [], response.currentName);
+        const sheets = response.sheets || [];
+        const orderedResults = searchSheets(sheets.map((sheet) => sheet.name), '');
+        state = stateApi.open(state, sheets, response.currentName, orderedResults);
         view = { error: '', status: 'idle' };
         render();
         ui.input.focus();
@@ -218,9 +220,14 @@
       else open();
     }
 
+    function observeCurrentSheet(name) {
+      state = stateApi.observeCurrentSheet(state, name);
+    }
+
     return {
       close,
       isOpen: () => state.open,
+      observeCurrentSheet,
       open,
       refresh: requestSheets,
       toggle,
