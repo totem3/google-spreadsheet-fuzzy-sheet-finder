@@ -32,7 +32,7 @@ test('uses a pinned Release Please action only for main pushes', () => {
   assert.match(workflow, /^  push:\n    branches:\n      - main$/m);
   assert.match(
     workflow,
-    /^\s+uses:\s+googleapis\/release-please-action@[a-f0-9]{40} # v\d+\.\d+\.\d+$/m,
+    /^\s+uses:\s+googleapis\/release-please-action@[a-f0-9]{40} # v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/m,
   );
   assert.match(workflow, /contents: write/);
   assert.match(workflow, /issues: write/);
@@ -50,7 +50,7 @@ test('validates ordinary pull request titles without privileged triggers', () =>
   assert.doesNotMatch(workflow, /actions\/checkout/);
   assert.match(
     workflow,
-    /^\s+uses:\s+amannn\/action-semantic-pull-request@[a-f0-9]{40} # v\d+\.\d+\.\d+$/m,
+    /^\s+uses:\s+amannn\/action-semantic-pull-request@[a-f0-9]{40} # v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/m,
   );
   assert.match(workflow, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/);
 
