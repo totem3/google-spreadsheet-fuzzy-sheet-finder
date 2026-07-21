@@ -23,11 +23,6 @@
         return undefined;
       }
 
-      if (message?.type === 'SHEETS_CHANGED') {
-        overlay?.refresh();
-        return undefined;
-      }
-
       if (!['GET_SHEETS', 'ACTIVATE_SHEET'].includes(message?.type)) return undefined;
 
       (async () => {
@@ -49,16 +44,6 @@
     });
   }
 
-  function notifySheetsChanged() {
-    try {
-      const currentRuntime = global.chrome?.runtime;
-      if (typeof currentRuntime?.sendMessage !== 'function') return;
-      Promise.resolve(currentRuntime.sendMessage({ type: 'SHEETS_CHANGED' })).catch(() => {});
-    } catch {
-      // The extension may have been reloaded while this page was still open.
-    }
-  }
-
   function observeCurrentSheet() {
     try {
       const currentName = adapter?.getCurrentSheetName?.();
@@ -78,19 +63,19 @@
 
   observeCurrentSheet();
 
-  let notificationTimer;
+  let refreshTimer;
   let observedSheetTabs = [];
   let observedSheetTabSet = new Set();
-  function scheduleSheetsChangedNotification() {
-    clearTimeout(notificationTimer);
-    notificationTimer = setTimeout(() => {
-      if (observedSheetTabs.length) notifySheetsChanged();
+  function scheduleSheetsRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      if (observedSheetTabs.length) overlay?.refresh();
     }, 800);
   }
 
   const sheetTabObserver = new MutationObserver(() => {
     observeCurrentSheet();
-    scheduleSheetsChangedNotification();
+    scheduleSheetsRefresh();
   });
 
   function rebindSheetTabObserver() {
@@ -149,7 +134,7 @@
     );
 
     if (tabsMayHaveChanged && rebindSheetTabObserver()) observeCurrentSheet();
-    if (tabsMayHaveChanged || tabContentChanged) scheduleSheetsChangedNotification();
+    if (tabsMayHaveChanged || tabContentChanged) scheduleSheetsRefresh();
   });
 
   if (global.document.body) {

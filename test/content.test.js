@@ -34,7 +34,7 @@ test('observes body structure separately from sheet-tab attributes', () => {
   const tabB = {};
   const harness = createObserverHarness();
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({ getCurrentSheetName: () => 'A' }),
       createOverlayController: () => ({ observeCurrentSheet() {} }),
@@ -81,7 +81,7 @@ test('rebinds when candidate nodes add or replace sheet tabs', () => {
   const observedNames = [];
   const harness = createObserverHarness();
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({ getCurrentSheetName: () => currentName }),
       createOverlayController: () => ({
@@ -164,7 +164,7 @@ test('unrelated child-list changes do not rescan or rebind sheet tabs', () => {
   let scheduleCalls = 0;
   const harness = createObserverHarness();
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({ getCurrentSheetName: () => 'A' }),
       createOverlayController: () => ({ observeCurrentSheet() {} }),
@@ -207,7 +207,7 @@ test('unrelated child-list changes do not rescan or rebind sheet tabs', () => {
   assert.equal(attributeObserver.observations.length, observationCount);
 });
 
-test('sheet-tab content changes schedule a sheets-changed notification', () => {
+test('sheet-tab content changes schedule an overlay refresh', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
   const body = {};
   const tab = {};
@@ -215,7 +215,7 @@ test('sheet-tab content changes schedule a sheets-changed notification', () => {
   let scheduleCalls = 0;
   const harness = createObserverHarness();
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({ getCurrentSheetName: () => 'A' }),
       createOverlayController: () => ({ observeCurrentSheet() {} }),
@@ -264,7 +264,7 @@ test('tracks direct sheet changes while the overlay is closed without listing sh
     observeCurrentSheet: (name) => observedNames.push(name),
   };
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => adapter,
       createOverlayController: () => overlay,
@@ -306,7 +306,7 @@ test('does not read the current sheet for unrelated attribute changes', () => {
   let mutationCallback;
   let readCalls = 0;
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({
         getCurrentSheetName: () => { readCalls += 1; return 'A'; },
@@ -337,7 +337,7 @@ test('ignores a missing current sheet during DOM observation without throwing', 
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
   let mutationCallback;
   const context = {
-    chrome: { runtime: { onMessage: { addListener() {} }, sendMessage() {} } },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
     SheetFinder: {
       createSheetsAdapter: () => ({ getCurrentSheetName: () => null }),
       createOverlayController: () => ({ observeCurrentSheet() {} }),
@@ -356,20 +356,29 @@ test('ignores a missing current sheet during DOM observation without throwing', 
   assert.doesNotThrow(() => mutationCallback([{ type: 'childList' }]));
 });
 
-test('does not throw when the extension context disappears before a sheet change notification', () => {
+test('should refresh the overlay for each sheet-tab mutation path while tabs remain', () => {
   const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
   const harness = createObserverHarness();
   let scheduledCallback;
-  const tab = {};
+  let refreshCalls = 0;
   const body = {};
-  const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
+  const tabA = { matches: () => true };
+  const tabB = { matches: () => true };
+  const tabContent = { closest: () => tabA };
+  let tabs = [tabA];
   const context = {
-    chrome: { runtime },
-    SheetFinder: { createSheetsAdapter: () => ({}) },
+    chrome: { runtime: { onMessage: { addListener() {} } } },
+    SheetFinder: {
+      createSheetsAdapter: () => ({ getCurrentSheetName: () => 'A' }),
+      createOverlayController: () => ({
+        observeCurrentSheet() {},
+        refresh: () => { refreshCalls += 1; },
+      }),
+    },
     MutationObserver: harness.Observer,
     document: {
       body,
-      querySelectorAll: () => [tab],
+      querySelectorAll: () => tabs,
     },
     setTimeout: (callback) => { scheduledCallback = callback; return 1; },
     clearTimeout() {},
@@ -377,57 +386,52 @@ test('does not throw when the extension context disappears before a sheet change
   context.globalThis = context;
 
   vm.runInNewContext(source, context);
-  context.chrome.runtime = undefined;
-
   const structureObserver = harness.instances.find((observer) =>
     observer.observations.some(({ target }) => target === body));
-  assert.ok(structureObserver);
-  assert.doesNotThrow(() => {
-    structureObserver.callback([{
-      type: 'childList',
-      target: tab,
-      addedNodes: [{ nodeType: 3 }],
-      removedNodes: [],
-    }]);
-    scheduledCallback();
-  });
-});
+  const attributeObserver = harness.instances.find((observer) => observer !== structureObserver);
+  function runNewlyScheduledCallback() {
+    const callback = scheduledCallback;
+    scheduledCallback = undefined;
+    assert.equal(typeof callback, 'function');
+    callback();
+  }
 
-test('does not throw when the invalidated runtime throws while reading sendMessage', () => {
-  const source = fs.readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
-  const harness = createObserverHarness();
-  let scheduledCallback;
-  const tab = {};
-  const body = {};
-  const runtime = { onMessage: { addListener() {} }, sendMessage() {} };
-  const context = {
-    chrome: { runtime },
-    SheetFinder: { createSheetsAdapter: () => ({}) },
-    MutationObserver: harness.Observer,
-    document: { body, querySelectorAll: () => [tab] },
-    setTimeout: (callback) => { scheduledCallback = callback; return 1; },
-    clearTimeout() {},
-  };
-  context.globalThis = context;
+  function runScheduledCallbackIfPresent() {
+    const callback = scheduledCallback;
+    scheduledCallback = undefined;
+    if (callback) callback();
+  }
 
-  vm.runInNewContext(source, context);
-  Object.defineProperty(context.chrome, 'runtime', {
-    configurable: true,
-    get: () => ({
-      get sendMessage() { throw new Error('Extension context invalidated'); },
-    }),
-  });
+  attributeObserver.callback([{ type: 'attributes', target: tabA }]);
+  runNewlyScheduledCallback();
 
-  const structureObserver = harness.instances.find((observer) =>
-    observer.observations.some(({ target }) => target === body));
-  assert.ok(structureObserver);
-  assert.doesNotThrow(() => {
-    structureObserver.callback([{
-      type: 'childList',
-      target: tab,
-      addedNodes: [{ nodeType: 3 }],
-      removedNodes: [],
-    }]);
-    scheduledCallback();
-  });
+  structureObserver.callback([{
+    type: 'childList',
+    target: tabContent,
+    addedNodes: [{ nodeType: 3 }],
+    removedNodes: [],
+  }]);
+  runNewlyScheduledCallback();
+
+  tabs = [tabA, tabB];
+  structureObserver.callback([{
+    type: 'childList',
+    target: body,
+    addedNodes: [tabB],
+    removedNodes: [],
+  }]);
+  runNewlyScheduledCallback();
+
+  assert.equal(refreshCalls, 3);
+
+  tabs = [];
+  structureObserver.callback([{
+    type: 'childList',
+    target: body,
+    addedNodes: [],
+    removedNodes: [tabA, tabB],
+  }]);
+  runScheduledCallbackIfPresent();
+
+  assert.equal(refreshCalls, 3);
 });

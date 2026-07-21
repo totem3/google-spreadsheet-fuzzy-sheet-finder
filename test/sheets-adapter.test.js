@@ -148,3 +148,31 @@ test('activates a sheet after listing sheets through the all-sheets menu', async
 
   assert.equal(activated, true);
 });
+
+test('reports a stable code when no sheets can be found', async () => {
+  const documentRef = {
+    defaultView: { getComputedStyle: () => ({}) },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  const adapter = loadAdapter()(documentRef);
+
+  await assert.rejects(
+    adapter.getSheets(),
+    (error) => error.code === 'SHEETS_NOT_FOUND' && /シート一覧/.test(error.message),
+  );
+});
+
+test('reports a stable code when the requested sheet cannot be found', async () => {
+  const documentRef = {
+    defaultView: { getComputedStyle: () => ({}) },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  const adapter = loadAdapter()(documentRef);
+
+  await assert.rejects(
+    adapter.activateSheet('missing'),
+    (error) => error.code === 'SHEET_NOT_FOUND' && /missing/.test(error.message),
+  );
+});

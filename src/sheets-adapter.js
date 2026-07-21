@@ -152,15 +152,20 @@
     return result;
   }
 
+  function createSheetsError(message, code) {
+    return Object.assign(new Error(message), { code });
+  }
+
   function createSheetsAdapter(documentRef = document) {
     async function getSheets() {
       const visible = getVisibleSheetNames(documentRef);
       const menu = await readAllSheetsMenu(documentRef);
       const sheets = mergeNames(visible, menu);
       if (!sheets.length) {
-        const error = new Error('シート一覧を取得できませんでした。Google Sheetsを再読み込みしてください。');
-        error.code = 'SHEETS_NOT_FOUND';
-        throw error;
+        throw createSheetsError(
+          'シート一覧を取得できませんでした。Google Sheetsを再読み込みしてください。',
+          'SHEETS_NOT_FOUND',
+        );
       }
       return { sheets, currentName: getCurrentSheetName(documentRef) };
     }
@@ -193,9 +198,7 @@
         }
       }
 
-      const error = new Error(`シート「${name}」が見つかりませんでした。`);
-      error.code = 'SHEET_NOT_FOUND';
-      throw error;
+      throw createSheetsError(`シート「${name}」が見つかりませんでした。`, 'SHEET_NOT_FOUND');
     }
 
     return {

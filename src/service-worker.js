@@ -49,11 +49,6 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === 'SHEETS_CHANGED') {
-    chrome.runtime.sendMessage({ type: 'SHEETS_CHANGED' }).catch(() => {});
-    return undefined;
-  }
-
   if (message?.type === 'TOGGLE_OVERLAY') {
     toggleActiveSheetOverlay().catch(() => {});
     return undefined;
