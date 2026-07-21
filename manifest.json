@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Sheet Finder",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Google Sheetsのシート名を検索して移動します。",
   "permissions": [],
-  "host_permissions": ["https://docs.google.com/spreadsheets/*"],
+  "host_permissions": [
+    "https://docs.google.com/spreadsheets/*"
+  ],
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
@@ -23,15 +25,27 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://docs.google.com/spreadsheets/*"],
-      "js": ["src/search-content.js", "src/overlay-state.js", "src/sheets-adapter.js", "src/overlay.js", "src/content.js"],
+      "matches": [
+        "https://docs.google.com/spreadsheets/*"
+      ],
+      "js": [
+        "src/search-content.js",
+        "src/overlay-state.js",
+        "src/sheets-adapter.js",
+        "src/overlay.js",
+        "src/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/overlay.css"],
-      "matches": ["https://docs.google.com/*"]
+      "resources": [
+        "src/overlay.css"
+      ],
+      "matches": [
+        "https://docs.google.com/*"
+      ]
     }
   ]
 }
