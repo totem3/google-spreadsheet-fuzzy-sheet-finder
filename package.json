@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --project jsconfig.json",
+    "build": "node scripts/build-extension.js . dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.2.2",
+    "typescript": "5.9.3"
   }
 }

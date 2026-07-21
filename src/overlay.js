@@ -4,7 +4,11 @@
     let state = stateApi.createState();
     let host;
     let shadow;
+    let stylesheet;
+    let stylesheetReady = false;
+    let scrollFrameId;
     let ui;
+    let overlayGeneration = 0;
     let requestToken = 0;
     let view = { error: '', status: 'idle' };
 
@@ -16,10 +20,18 @@
       host.setAttribute('aria-live', 'polite');
       shadow = host.attachShadow({ mode: 'open' });
 
-      const stylesheet = documentRef.createElement('link');
-      stylesheet.rel = 'stylesheet';
-      stylesheet.href = global.chrome?.runtime?.getURL?.('src/overlay.css') || '';
-      shadow.append(stylesheet);
+      const nextStylesheet = documentRef.createElement('link');
+      nextStylesheet.rel = 'stylesheet';
+      nextStylesheet.href = global.chrome?.runtime?.getURL?.('src/overlay.css') || '';
+      const markStylesheetSettled = () => {
+        if (stylesheet !== nextStylesheet) return;
+        stylesheetReady = true;
+        if (state.open) render();
+      };
+      nextStylesheet.addEventListener('load', markStylesheetSettled);
+      nextStylesheet.addEventListener('error', markStylesheetSettled);
+      stylesheet = nextStylesheet;
+      shadow.append(nextStylesheet);
 
       const backdrop = documentRef.createElement('div');
       backdrop.className = 'backdrop';
@@ -76,8 +88,9 @@
       });
       ui.input.addEventListener('keydown', handleKeydown);
       ui.results.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
         const button = event.target.closest('button[data-name]');
-        if (button) activateSelected(button.dataset.name);
+        if (button instanceof HTMLElement) activateSelected(button.dataset.name);
       });
 
       documentRef.body.append(host);
@@ -111,7 +124,14 @@
       return searchSheets(state.sheets.map((sheet) => sheet.name), state.query);
     }
 
+    function cancelScheduledScroll() {
+      if (scrollFrameId === undefined) return;
+      global.cancelAnimationFrame(scrollFrameId);
+      scrollFrameId = undefined;
+    }
+
     function render() {
+      cancelScheduledScroll();
       if (!ui) return;
 
       const results = getResults();
@@ -146,6 +166,17 @@
         ui.results.append(button);
       }
 
+      const selectedResult = ui.results.children[state.selectedIndex];
+      if (selectedResult && stylesheetReady) {
+        scrollFrameId = global.requestAnimationFrame(() => {
+          scrollFrameId = undefined;
+          selectedResult.scrollIntoView({
+            block: 'center',
+            inline: 'nearest',
+          });
+        });
+      }
+
       ui.status.dataset.tone = view.error ? 'error' : 'normal';
       ui.status.textContent = view.error || (view.status === 'loading' ? 'シート一覧を読み込み中…' : view.status === 'activating' ? '移動中…' : `${results.length}件のシート`);
       ui.refresh.disabled = view.status === 'loading' || view.status === 'activating';
@@ -153,7 +184,7 @@
     }
 
     async function requestSheets() {
-      if (!state.open) return;
+      if (!state.open || view.status === 'activating') return;
       const token = ++requestToken;
       view = { error: '', status: 'loading' };
       render();
@@ -180,13 +211,16 @@
 
     async function activateSelected(name) {
       if (view.status === 'loading' || view.status === 'activating') return;
+      const generation = overlayGeneration;
       view = { error: '', status: 'activating' };
       render();
 
       try {
         await adapter.activateSheet(name);
+        if (!state.open || generation !== overlayGeneration) return;
         close();
       } catch (error) {
+        if (!state.open || generation !== overlayGeneration) return;
         view = {
           error: error?.message || 'シートへ移動できませんでした。',
           status: 'error',
@@ -197,6 +231,7 @@
 
     function open() {
       if (state.open) return;
+      overlayGeneration += 1;
       ensureDom();
       state = stateApi.open(state, [], null);
       view = { error: '', status: 'loading' };
@@ -206,12 +241,16 @@
     }
 
     function close() {
+      overlayGeneration += 1;
       requestToken += 1;
+      cancelScheduledScroll();
       state = stateApi.close(state);
       view = { error: '', status: 'idle' };
       host?.remove();
       host = undefined;
       shadow = undefined;
+      stylesheet = undefined;
+      stylesheetReady = false;
       ui = undefined;
     }
 
